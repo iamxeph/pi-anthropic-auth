@@ -10,6 +10,7 @@ import {
   shapeSystemBlocks,
   shapeSystemUpdateText,
 } from "./system-prompt-shaping";
+import { isSystemPromptShapingDisabled } from "./system-prompt-shaping-mode";
 
 type TextBlock = {
   type: "text";
@@ -212,11 +213,20 @@ export function shapeAnthropicOAuthPayload(payload: unknown): unknown {
   }
 
   const messages = payload.messages as MessageParam[];
-  const normalizedMessages = shapeSystemRoleMessages(messages);
+  // `PI_ANTHROPIC_AUTH_SYSTEM_PROMPT_SHAPING=off` skips both prompt-shaping
+  // routes — the leading `system[]` blocks and the mid-conversation
+  // `role: "system"` messages — and leaves every message byte-identical.  The
+  // billing header below is not part of the switch; see
+  // `system-prompt-shaping-mode.ts`.
+  const shapingDisabled = isSystemPromptShapingDisabled();
+  const normalizedMessages = shapingDisabled
+    ? messages
+    : shapeSystemRoleMessages(messages);
 
-  const shapedSystem = Array.isArray(payload.system)
-    ? shapeSystemBlocks(payload.system as TextBlock[])
-    : payload.system;
+  const shapedSystem =
+    !shapingDisabled && Array.isArray(payload.system)
+      ? shapeSystemBlocks(payload.system as TextBlock[])
+      : payload.system;
   const finalSystem = prependBillingHeader(shapedSystem, normalizedMessages);
 
   if (shouldLogRequestDebug(messages)) {
