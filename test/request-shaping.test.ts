@@ -7,10 +7,16 @@ import {
   resolveClaudeCodeVersion,
 } from "#src/claude-code-version";
 import { shapeAnthropicOAuthPayload } from "#src/request-shaping";
+import { SYSTEM_PROMPT_SHAPING_ENV } from "#src/system-prompt-shaping-mode";
 import {
   buildExpectedBillingHeader,
   withVersionOverride,
 } from "#test/billing-header-fixtures";
+
+// This suite asserts the default configuration, so it must not inherit the
+// switches a developer exported in the shell that launched it.
+Reflect.deleteProperty(process.env, SYSTEM_PROMPT_SHAPING_ENV);
+Reflect.deleteProperty(process.env, CLAUDE_CODE_VERSION_ENV);
 
 const TEST_MODEL = "claude-haiku-4-5";
 

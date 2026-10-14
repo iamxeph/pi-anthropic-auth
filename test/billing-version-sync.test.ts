@@ -4,6 +4,7 @@ import { describe, test, vi } from "vitest";
 import { createBillingVersionSync } from "#src/billing-version-sync";
 import {
   CLAUDE_CODE_VERSION,
+  CLAUDE_CODE_VERSION_ENV,
   createLearnedClaudeCodeFloor,
 } from "#src/claude-code-version";
 import {
@@ -19,6 +20,10 @@ import {
   okResponse,
   REJECTION_REQUEST_ID,
 } from "#test/version-rejection-fixtures";
+
+// This suite asserts the default configuration, so it must not inherit the
+// version override a developer exported in the shell that launched it.
+Reflect.deleteProperty(process.env, CLAUDE_CODE_VERSION_ENV);
 
 const USER_TEXT = "Summarize the repository status.";
 const PI_AHEAD = "2.9.9";
