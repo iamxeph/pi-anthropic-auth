@@ -8,7 +8,6 @@ import type {
 } from "@earendil-works/pi-ai";
 import { normalizeContext } from "@earendil-works/pi-ai";
 import { beforeEach, describe, test } from "vitest";
-import { CLAUDE_CODE_VERSION_ENV } from "#src/claude-code-version";
 import {
   createAnthropicOAuthStreamSimple,
   isAnthropicOAuthToken,
@@ -17,10 +16,6 @@ import {
   claudeCodeVersionTooOldResponse,
   okResponse,
 } from "#test/version-rejection-fixtures";
-
-// This suite asserts the default configuration, so it must not inherit the
-// version override a developer exported in the shell that launched it.
-Reflect.deleteProperty(process.env, CLAUDE_CODE_VERSION_ENV);
 
 const OAUTH_TOKEN = "sk-ant-oat01-example-access-token";
 const API_KEY = "sk-ant-api03-example-key";
