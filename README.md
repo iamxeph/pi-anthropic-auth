@@ -233,13 +233,15 @@ pi -e /absolute/path/to/pi-anthropic-auth/dist/index.js
 
 By default the extension de-fingerprints Pi's system prompt on OAuth requests: it replaces Pi's preamble with a minimal neutral one, drops the `docs` section, strips the custom-tool filler from `tools`, and applies the same rules to the mid-conversation system messages Pi re-sends.
 
-Set `PI_ANTHROPIC_AUTH_SYSTEM_PROMPT_SHAPING=off` to send Pi's prompt byte-identically instead:
+Set `"systemPromptShaping": false` in `~/.pi/agent/extensions/pi-anthropic-auth/config.json` (or under `$PI_CODING_AGENT_DIR/extensions/pi-anthropic-auth/config.json`) to send Pi's prompt byte-identically instead:
 
-```bash
-PI_ANTHROPIC_AUTH_SYSTEM_PROMPT_SHAPING=off pi
+```json
+{
+  "systemPromptShaping": false
+}
 ```
 
-Only the exact value `off` (case-insensitive) disables it; unset, empty, or any other value keeps the default shaping.
+Only the boolean value `false` disables it; omitting the key, `true`, or any other value keeps the default shaping.
 
 The billing header, the Claude Code version sync, and the version-floor recovery are unaffected.
 The header is what keeps a long agent prompt from being answered with Anthropic's misleading `You're out of extra usage.` 400, so it is not part of this switch.

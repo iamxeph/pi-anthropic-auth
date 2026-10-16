@@ -1,33 +1,31 @@
 import assert from "node:assert/strict";
-import { onTestFinished, test } from "vitest";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { onTestFinished, test, vi } from "vitest";
 
+import { globalConfigPath } from "#src/extension-config";
 import { shapeAnthropicOAuthPayload } from "#src/request-shaping";
-import {
-  isSystemPromptShapingDisabled,
-  SYSTEM_PROMPT_SHAPING_ENV,
-  SYSTEM_PROMPT_SHAPING_OFF,
-} from "#src/system-prompt-shaping-mode";
+import { isSystemPromptShapingDisabled } from "#src/system-prompt-shaping-mode";
 
-/** Sets the shaping switch for one test and restores the previous value. */
-function withShapingValue(value: string): void {
-  const previous = process.env[SYSTEM_PROMPT_SHAPING_ENV];
-  process.env[SYSTEM_PROMPT_SHAPING_ENV] = value;
+const PATH = "/home/me/.pi/agent/extensions/pi-anthropic-auth/config.json";
+
+function withGlobalConfig(config: unknown): void {
+  const agentDir = mkdtempSync(join(tmpdir(), "pi-anthropic-auth-shaping-"));
+  const path = globalConfigPath(agentDir);
+  mkdirSync(join(path, ".."), { recursive: true });
+  writeFileSync(path, JSON.stringify(config));
+  vi.stubEnv("PI_CODING_AGENT_DIR", agentDir);
   onTestFinished(() => {
-    if (previous === undefined) {
-      Reflect.deleteProperty(process.env, SYSTEM_PROMPT_SHAPING_ENV);
-      return;
-    }
-    process.env[SYSTEM_PROMPT_SHAPING_ENV] = previous;
+    vi.unstubAllEnvs();
+    rmSync(agentDir, { recursive: true, force: true });
   });
 }
 
-function unsetShapingValue(): void {
-  const previous = process.env[SYSTEM_PROMPT_SHAPING_ENV];
-  Reflect.deleteProperty(process.env, SYSTEM_PROMPT_SHAPING_ENV);
+function withNoGlobalConfig(): void {
+  vi.stubEnv("PI_CODING_AGENT_DIR", "/nonexistent-pi-agent-dir");
   onTestFinished(() => {
-    if (previous !== undefined) {
-      process.env[SYSTEM_PROMPT_SHAPING_ENV] = previous;
-    }
+    vi.unstubAllEnvs();
   });
 }
 
@@ -69,34 +67,50 @@ function oauthPayload() {
   };
 }
 
-test("isSystemPromptShapingDisabled reads an explicit off only", () => {
-  assert.equal(isSystemPromptShapingDisabled({}), false);
+test("isSystemPromptShapingDisabled returns true only when systemPromptShaping is false", () => {
   assert.equal(
-    isSystemPromptShapingDisabled({ [SYSTEM_PROMPT_SHAPING_ENV]: "" }),
+    isSystemPromptShapingDisabled(PATH, () => "{}"),
     false,
   );
   assert.equal(
-    isSystemPromptShapingDisabled({ [SYSTEM_PROMPT_SHAPING_ENV]: "on" }),
+    isSystemPromptShapingDisabled(
+      PATH,
+      () => '{ "systemPromptShaping": true }',
+    ),
     false,
   );
   assert.equal(
-    isSystemPromptShapingDisabled({ [SYSTEM_PROMPT_SHAPING_ENV]: "true" }),
+    isSystemPromptShapingDisabled(
+      PATH,
+      () => '{ "systemPromptShaping": "off" }',
+    ),
     false,
   );
   assert.equal(
-    isSystemPromptShapingDisabled({
-      [SYSTEM_PROMPT_SHAPING_ENV]: SYSTEM_PROMPT_SHAPING_OFF,
+    isSystemPromptShapingDisabled(PATH, () => "not json"),
+    false,
+  );
+  assert.equal(
+    isSystemPromptShapingDisabled(PATH, () => "[]"),
+    false,
+  );
+  assert.equal(
+    isSystemPromptShapingDisabled(PATH, () => {
+      throw new Error("ENOENT");
     }),
-    true,
+    false,
   );
   assert.equal(
-    isSystemPromptShapingDisabled({ [SYSTEM_PROMPT_SHAPING_ENV]: " OFF " }),
+    isSystemPromptShapingDisabled(
+      PATH,
+      () => '{ "systemPromptShaping": false }',
+    ),
     true,
   );
 });
 
 test("shapes both prompt routes by default", () => {
-  unsetShapingValue();
+  withNoGlobalConfig();
 
   const payload = oauthPayload();
   const shaped = shapeAnthropicOAuthPayload(payload) as typeof payload;
@@ -108,8 +122,8 @@ test("shapes both prompt routes by default", () => {
   assert.equal(shaped.messages.length, 1);
 });
 
-test("leaves the system prompt untouched when the switch is off", () => {
-  withShapingValue("off");
+test("leaves the system prompt untouched when systemPromptShaping is false in config.json", () => {
+  withGlobalConfig({ systemPromptShaping: false });
 
   const payload = oauthPayload();
   const shaped = shapeAnthropicOAuthPayload(payload) as typeof payload;
@@ -121,8 +135,8 @@ test("leaves the system prompt untouched when the switch is off", () => {
   assert.equal(shaped.messages[1]?.content, payload.messages[1]?.content);
 });
 
-test("still prepends the billing header when the switch is off", () => {
-  withShapingValue("off");
+test("still prepends the billing header when systemPromptShaping is false", () => {
+  withGlobalConfig({ systemPromptShaping: false });
 
   const payload = oauthPayload();
   const shaped = shapeAnthropicOAuthPayload(payload) as typeof payload;
