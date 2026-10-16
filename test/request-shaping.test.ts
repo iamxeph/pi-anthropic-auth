@@ -13,9 +13,8 @@ import {
 } from "#test/billing-header-fixtures";
 
 // This suite asserts the default configuration, so it must not inherit the
-// developer's global config file or a version override exported in the shell.
+// developer's global config file.
 process.env.PI_CODING_AGENT_DIR = "/nonexistent-pi-agent-dir";
-Reflect.deleteProperty(process.env, CLAUDE_CODE_VERSION_ENV);
 
 const TEST_MODEL = "claude-haiku-4-5";
 
